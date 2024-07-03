@@ -41,5 +41,14 @@ def initialize_database():
         total_amount_spent REAL NOT NULL DEFAULT 0.0
     )
     ''')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Despesas (
+        expense_id INTEGER PRIMARY KEY,
+        description TEXT NOT NULL,
+        date TEXT NOT NULL,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL
+    )
+    ''')
     conn.commit()
     conn.close()

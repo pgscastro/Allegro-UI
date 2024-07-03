@@ -110,7 +110,7 @@ def open_analytics_menu(root):
     main_frame.pack(fill=tk.BOTH, expand=True)
 
     # Add buttons for each analytic option
-    ttk.Button(main_frame, text="Compras Mensais", command=lambda: open_monthly_purchases_window(root)).pack(fill=tk.X, pady=5)
+    ttk.Button(main_frame, text="Relatorio Mensal", command=lambda: open_monthly_purchases_window(root)).pack(fill=tk.X, pady=5)
     ttk.Button(main_frame, text="Top Clientes", command=lambda: print("Implementar Top Clientes")).pack(fill=tk.X, pady=5)
     ttk.Button(main_frame, text="Próximos Aniversários", command=lambda: print("Implementar Próximos Aniversários")).pack(fill=tk.X, pady=5)
     ttk.Button(main_frame, text="Exportar Dados para Excel", command=lambda: print("Implementar Exportação de Dados")).pack(fill=tk.X, pady=5)

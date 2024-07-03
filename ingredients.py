@@ -3,6 +3,8 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from PIL import Image, ImageTk
 import os
+import ui_config
+
 DATABASE_PATH = 'food_supplier.db'
 
 def connect_to_db():
@@ -75,44 +77,42 @@ def delete_ingredient(ingredient_listbox, status_label):
     status_label.config(text=f"Ingrediente ID '{ingredient_id}' desativado com sucesso.")
 
 def open_add_ingredient_window(root, status_label):
-    # Apply styles
-
+    ui_config.apply_styles(root)  # Apply styles
 
     add_ingredient_window = tk.Toplevel(root)
     add_ingredient_window.title("Adicionar Ingrediente")
     add_ingredient_window.geometry("500x400")
     add_ingredient_window.minsize(500, 400)
-    add_ingredient_window.configure()
+    add_ingredient_window.configure(bg=ui_config.bg_color)  # Set background color
 
     # Create the main frame
     main_frame = ttk.Frame(add_ingredient_window, padding="20 20 20 20", style="Main.TFrame")
     main_frame.pack(fill=tk.BOTH, expand=True)
 
     # Header
-    header_label = ttk.Label(main_frame, text="Adicionar Novo Ingrediente", font=("Helvetica", 18, "bold"))
+    header_label = ttk.Label(main_frame, text="Adicionar Novo Ingrediente", style="Header.TLabel")
     header_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
 
     # Form labels and entries
-    form_frame = ttk.Frame(main_frame)
+    form_frame = ttk.Frame(main_frame, style="Main.TFrame")
     form_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky="ew")
 
-    ttk.Label(form_frame, text="Nome do Ingrediente:").grid(row=0, column=0, sticky="e", padx=(0, 10))
-    ingredient_name_entry = ttk.Entry(form_frame)
+    ttk.Label(form_frame, text="Nome do Ingrediente:", style="Main.TLabel").grid(row=0, column=0, sticky="e", padx=(0, 10))
+    ingredient_name_entry = ttk.Entry(form_frame, style="Main.TEntry")
     ingredient_name_entry.grid(row=0, column=1, sticky="ew")
 
-    ttk.Label(form_frame, text="Preço por Unidade:").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
-    price_per_unit_entry = ttk.Entry(form_frame)
+    ttk.Label(form_frame, text="Preço por Unidade:", style="Main.TLabel").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
+    price_per_unit_entry = ttk.Entry(form_frame, style="Main.TEntry")
     price_per_unit_entry.grid(row=1, column=1, sticky="ew")
 
-    ttk.Label(form_frame, text="Unidade:").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
-    unit_entry = ttk.Entry(form_frame)
+    ttk.Label(form_frame, text="Unidade:", style="Main.TLabel").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
+    unit_entry = ttk.Entry(form_frame, style="Main.TEntry")
     unit_entry.grid(row=2, column=1, sticky="ew")
 
     form_frame.grid_columnconfigure(1, weight=1)
 
-
     # Buttons with icons
-    button_frame = ttk.Frame(main_frame)
+    button_frame = ttk.Frame(main_frame, style="Main.TFrame")
     button_frame.grid(row=2, column=0, columnspan=2, pady=20, sticky="ew")
 
     add_update_button = ttk.Button(button_frame, text="Adicionar/Atualizar Ingrediente",
@@ -122,18 +122,18 @@ def open_add_ingredient_window(root, status_label):
                                        unit_entry.get(),
                                        ingredient_listbox,
                                        status_label
-                                   ), style="TButton")
+                                   ), style="Main.TButton")
     add_update_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 10))
 
     delete_button = ttk.Button(button_frame, text="Desativar Ingrediente",
                                command=lambda: delete_ingredient(
                                    ingredient_listbox,
                                    status_label
-                               ), style="TButton")
+                               ), style="Main.TButton")
     delete_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 10))
 
     # Ingredient list
-    ingredient_listbox = tk.Listbox(main_frame, width=50, height=10)
+    ingredient_listbox = tk.Listbox(main_frame, width=50, height=10, bg=ui_config.bg_color, fg=ui_config.font_color, font=("Helvetica", 12))
     ingredient_listbox.grid(row=3, column=0, columnspan=2, pady=20, sticky="nsew")
 
     main_frame.grid_rowconfigure(3, weight=1)

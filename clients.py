@@ -4,7 +4,9 @@ from tkinter import messagebox, ttk
 from PIL import Image, ImageTk
 import os
 import re
-from ui_config import configure_styles, load_icon
+
+import ui_config
+from ui_config import apply_styles, load_icon
 
 DATABASE_PATH = 'food_supplier.db'
 
@@ -43,7 +45,8 @@ def validate_inputs(client_name, birthday, address):
         errors.append("Endereço é obrigatório")
     return errors
 
-def add_or_update_client(client_name, birthday, address, status_label, client_listbox, client_name_entry, birthday_entry, address_entry):
+def add_or_update_client(client_name, birthday, address, status_label, client_listbox, client_name_entry,
+                         birthday_entry, address_entry):
     errors = validate_inputs(client_name, birthday, address)
     if errors:
         status_label.config(text="; ".join(errors), foreground="red")
@@ -59,7 +62,8 @@ def add_or_update_client(client_name, birthday, address, status_label, client_li
         client = cursor.fetchone()
 
         if client:
-            if tk.messagebox.askyesno("Confirmar Atualização", f"Você tem certeza que deseja atualizar o cliente '{client_name}'?"):
+            if tk.messagebox.askyesno("Confirmar Atualização",
+                                      f"Você tem certeza que deseja atualizar o cliente '{client_name}'?"):
                 cursor.execute('''
                 UPDATE Clientes
                 SET birthday = ?, address = ?
@@ -120,7 +124,8 @@ def search_clients(search_term, listbox):
     conn = connect_to_db()
     if conn is not None:
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM Clientes WHERE client_name LIKE ? ORDER BY client_name', ('%' + search_term + '%',))
+        cursor.execute('SELECT * FROM Clientes WHERE client_name LIKE ? ORDER BY client_name',
+                       ('%' + search_term + '%',))
         clients = cursor.fetchall()
         listbox.delete(0, tk.END)
         for client in clients:
@@ -135,36 +140,38 @@ def format_date(event):
         event.widget.delete(10, tk.END)
 
 def open_add_client_window(root):
-    configure_styles()
     initialize_database()
+    apply_styles(root)
+
     add_client_window = tk.Toplevel(root)
     add_client_window.title("Adicionar Cliente")
-    add_client_window.geometry("600x500")
-    add_client_window.minsize(600, 500)
+    add_client_window.geometry("750x500")
+    add_client_window.minsize(750, 500)
+    add_client_window.configure(bg=ui_config.bg_color)  # Set background color
 
     # Create the main frame
     main_frame = ttk.Frame(add_client_window, padding="20 20 20 20", style="Main.TFrame")
     main_frame.pack(fill=tk.BOTH, expand=True)
 
     # Header
-    header_label = ttk.Label(main_frame, text="Adicionar Novo Cliente", style="TLabel")
+    header_label = ttk.Label(main_frame, text="Adicionar Novo Cliente", style="Header.TLabel")
     header_label.grid(row=0, column=0, columnspan=4, pady=(0, 20))
 
     # Form labels and entries
     form_frame = ttk.Frame(main_frame, style="Main.TFrame")
     form_frame.grid(row=1, column=0, columnspan=4, pady=10, sticky="ew")
 
-    ttk.Label(form_frame, text="Nome do Cliente:", style="TLabel").grid(row=0, column=0, sticky="e", padx=(0, 10))
-    client_name_entry = ttk.Entry(form_frame)
+    ttk.Label(form_frame, text="Nome do Cliente:", style="Main.TLabel").grid(row=0, column=0, sticky="e", padx=(0, 10))
+    client_name_entry = ttk.Entry(form_frame, style="Main.TEntry")
     client_name_entry.grid(row=0, column=1, columnspan=3, sticky="ew")
 
-    ttk.Label(form_frame, text="Data de Aniversário (DD/MM/YYYY):", style="TLabel").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
-    birthday_entry = ttk.Entry(form_frame)
+    ttk.Label(form_frame, text="Data de Aniversário (DD/MM/YYYY):", style="Main.TLabel").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
+    birthday_entry = ttk.Entry(form_frame, style="Main.TEntry")
     birthday_entry.grid(row=1, column=1, columnspan=3, sticky="ew")
     birthday_entry.bind('<KeyRelease>', format_date)
 
-    ttk.Label(form_frame, text="Endereço:", style="TLabel").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
-    address_entry = ttk.Entry(form_frame)
+    ttk.Label(form_frame, text="Endereço:", style="Main.TLabel").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
+    address_entry = ttk.Entry(form_frame, style="Main.TEntry")
     address_entry.grid(row=2, column=1, columnspan=3, sticky="ew")
 
     form_frame.grid_columnconfigure(1, weight=1)
@@ -178,19 +185,35 @@ def open_add_client_window(root):
     button_frame = ttk.Frame(main_frame, style="Main.TFrame")
     button_frame.grid(row=2, column=0, columnspan=4, pady=20, sticky="ew")
 
-    add_update_button = ttk.Button(button_frame, text="Adicionar/Atualizar Cliente", image=add_update_icon, compound=tk.LEFT, style="TButton", command=lambda: add_or_update_client(client_name_entry.get(), birthday_entry.get(), address_entry.get(), status_label, client_listbox, client_name_entry, birthday_entry, address_entry))
+    add_update_button = ttk.Button(button_frame, text="Adicionar/Atualizar Cliente", image=add_update_icon,
+                                   compound=tk.LEFT,
+                                   command=lambda: add_or_update_client(
+                                       client_name_entry.get(),
+                                       birthday_entry.get(),
+                                       address_entry.get(),
+                                       status_label,
+                                       client_listbox,
+                                       client_name_entry,
+                                       birthday_entry,
+                                       address_entry
+                                   ), style="Main.TButton")
     add_update_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 10))
 
-    delete_button = ttk.Button(button_frame, text="Desativar Cliente", image=delete_icon, compound=tk.LEFT, style="TButton", command=lambda: delete_client(client_listbox, status_label))
+    delete_button = ttk.Button(button_frame, text="Desativar Cliente", image=delete_icon, compound=tk.LEFT,
+                               command=lambda: delete_client(
+                                   client_listbox,
+                                   status_label
+                               ), style="Main.TButton")
     delete_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 10))
 
-    search_label = ttk.Label(button_frame, text="Buscar: ", style="TLabel")
+    search_label = ttk.Label(button_frame, text="Buscar: ", style="Main.TLabel")
     search_label.pack(side=tk.LEFT, padx=(10, 0))
 
-    search_entry = ttk.Entry(button_frame)
+    search_entry = ttk.Entry(button_frame, style="Main.TEntry")
     search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
-    search_button = ttk.Button(button_frame, text="Buscar", image=search_icon, compound=tk.LEFT, style="TButton", command=lambda: search_clients(search_entry.get(), client_listbox))
+    search_button = ttk.Button(button_frame, text="Buscar", image=search_icon, compound=tk.LEFT,
+                               command=lambda: search_clients(search_entry.get(), client_listbox), style="Main.TButton")
     search_button.pack(side=tk.LEFT, padx=(0, 10))
 
     # Client list
@@ -209,7 +232,7 @@ def open_add_client_window(root):
     main_frame.grid_columnconfigure(0, weight=1)
 
     # Status label
-    status_label = ttk.Label(main_frame, text="", font=("Helvetica", 10))
+    status_label = ttk.Label(main_frame, text="", style="Status.TLabel")
     status_label.grid(row=4, column=0, columnspan=4, pady=(10, 0), sticky="ew")
 
     update_client_list(client_listbox)

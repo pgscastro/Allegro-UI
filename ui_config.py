@@ -1,37 +1,49 @@
+import os
+import tkinter as tk
 from tkinter import ttk
+from PIL import Image, ImageTk
 
-# Define the original color palette
-BACKGROUND_COLOR = "#FFFFFF"  # Dark background
-TEXT_COLOR = "#000000"  # White text
-BUTTON_BACKGROUND_COLOR = "#F7C646"  # Warm Yellow for buttons
-BUTTON_TEXT_COLOR = "#1C1C1C"  # Dark text for buttons
-STATUS_BACKGROUND_COLOR = "#1C1C1C"  # Same as background
-STATUS_TEXT_COLOR = "#FFFFFF"  # White status text
+# Define the color palette based on the provided logo
+bg_color = "#fff0db"  # White background
+button_bg_color = "#81B29A"  # Light green button background
+button_fg_color = "#000000"  # White text for buttons
+font_color = "#000000"  # Black text
+header_color = "#F4A261"  # Orange header color
+header_font = ("Helvetica", 18, "bold")
+label_font = ("Helvetica", 12)
+entry_font = ("Helvetica", 12)
 
 
-def configure_styles():
-    style = ttk.Style()
-    style.theme_use("default")
+def apply_styles(root):
+    style = ttk.Style(root)
+    style.configure("TFrame", background=bg_color)
+    style.configure("TLabel", background=bg_color, font=label_font)
+    style.configure("TEntry", font=entry_font)
+    style.configure("TButton", background=button_bg_color, foreground=button_fg_color, font=label_font)
+    style.configure("Header.TLabel", font=header_font, background=bg_color)
+    style.configure("Status.TLabel", font=("Helvetica", 10), background=bg_color)
 
-    # Main frame style
-    style.configure("Main.TFrame", background=BACKGROUND_COLOR)
+    root.configure(background=bg_color)
 
-    # Button style
-    style.configure("TButton", padding=6, relief="flat", background=BUTTON_BACKGROUND_COLOR, foreground=BUTTON_TEXT_COLOR, font=("Helvetica", 12))
-    style.map("TButton", background=[('active', BUTTON_BACKGROUND_COLOR)])
 
-    # Label style
-    style.configure("TLabel", background=BACKGROUND_COLOR, foreground=TEXT_COLOR, font=("Helvetica", 12))
+def apply_color_palette(widget, widget_type):
+    if widget_type == "button":
+        widget.config(bg=button_bg_color, fg=button_fg_color, font=("Helvetica", 12))
+    elif widget_type == "label":
+        widget.config(bg=bg_color, fg=font_color, font=("Helvetica", 12))
+    elif widget_type == "entry":
+        widget.config(bg=bg_color, fg=font_color, font=("Helvetica", 12), insertbackground=font_color)
+    elif widget_type == "header":
+        widget.config(bg=bg_color, fg=header_color, font=("Helvetica", 18, "bold"))
+    else:
+        widget.config(bg=bg_color, fg=font_color)
 
-    # Status label style
-    style.configure("Status.TLabel", background=STATUS_BACKGROUND_COLOR, foreground=STATUS_TEXT_COLOR, font=("Helvetica", 10))
+
+def set_global_styles(root):
+    apply_styles(root)
+
 
 def load_icon(icon_path, size=(20, 20)):
-    from PIL import Image, ImageTk
-    import os
     if os.path.exists(icon_path):
-        try:
-            return ImageTk.PhotoImage(Image.open(icon_path).resize(size, Image.LANCZOS))
-        except Exception as e:
-            print(f"Error loading image {icon_path}: {e}")
+        return ImageTk.PhotoImage(Image.open(icon_path).resize(size, Image.LANCZOS))
     return None
