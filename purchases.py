@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime  # Import datetime module
 
-DATABASE_PATH = 'food_supplier.db'
+DATABASE_PATH = 'database/food_supplier.db'
 
 
 def connect_to_db():

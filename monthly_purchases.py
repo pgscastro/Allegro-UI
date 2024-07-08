@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
-import graph
+from ui import graph
+
 
 def show_monthly_purchases():
     def plot_data():

@@ -4,7 +4,7 @@ from tkinter import messagebox, ttk
 from PIL import Image, ImageTk
 import os
 
-DATABASE_PATH = 'food_supplier.db'
+DATABASE_PATH = 'database/food_supplier.db'
 
 
 def connect_to_db():
