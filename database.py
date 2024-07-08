@@ -47,8 +47,21 @@ def initialize_database():
         description TEXT NOT NULL,
         date TEXT NOT NULL,
         amount REAL NOT NULL,
-        type TEXT NOT NULL
+        expense_type TEXT NOT NULL
     )
     ''')
+    conn.commit()
+    conn.close()
+
+def update_database_schema():
+    conn = sqlite3.connect('food_supplier.db')
+    cursor = conn.cursor()
+
+    cursor.execute('PRAGMA table_info(Despesas)')
+    columns = [info[1] for info in cursor.fetchall()]
+
+    if 'expense_type' not in columns:
+        cursor.execute('ALTER TABLE Despesas ADD COLUMN expense_type TEXT NOT NULL DEFAULT "General"')
+
     conn.commit()
     conn.close()

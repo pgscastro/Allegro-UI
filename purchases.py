@@ -73,7 +73,8 @@ def get_recipes():
 
 
 def add_purchase(client_id, purchase_date, total_amount, items, status_label, purchase_listbox, client_dropdown,
-                 date_entry, item_frames):
+                 date_entry, item_frames, item_vars, quantity_vars, total_amount_var, item_frame_container,
+                 discount_var, discount_percentage_var, discount_check_var, recipes):
     if not client_id or not purchase_date or not items:
         status_label.config(text="Todos os campos são obrigatórios", foreground="red")
         return
@@ -89,11 +90,12 @@ def add_purchase(client_id, purchase_date, total_amount, items, status_label, pu
         return
 
     try:
+        formatted_purchase_date = datetime.strptime(purchase_date, "%d/%m/%Y").strftime("%Y-%m-%d")
         with connect_to_db() as conn:
             cursor = conn.cursor()
             cursor.execute('''
             INSERT INTO Compras (client_id, purchase_date, total_amount) VALUES (?, ?, ?)
-            ''', (client_id, purchase_date, total_amount))
+            ''', (client_id, formatted_purchase_date, total_amount))
             purchase_id = cursor.lastrowid
             for item in items:
                 cursor.execute('''
@@ -102,17 +104,31 @@ def add_purchase(client_id, purchase_date, total_amount, items, status_label, pu
             conn.commit()
             status_label.config(text=f"Compra adicionada com sucesso", foreground="green")
             update_purchase_list(purchase_listbox)
-            clear_form(client_dropdown, date_entry)
-            for frame in item_frames:
-                frame.destroy()
+            clear_form(client_dropdown, date_entry, total_amount_var, item_frame_container, item_frames, item_vars,
+                       quantity_vars, discount_var, discount_percentage_var, discount_check_var, recipes)
     except sqlite3.Error as e:
         log_error(f"Erro ao adicionar compra: {e}")
         messagebox.showerror("Erro", f"Erro ao adicionar compra: {e}")
 
 
-def clear_form(*fields):
-    for field in fields:
-        field.delete(0, tk.END)
+def clear_form(client_dropdown, date_entry, total_amount_var, item_frame_container, item_frames, item_vars,
+               quantity_vars, discount_var, discount_percentage_var, discount_check_var, recipes):
+    client_dropdown.set('')
+    date_entry.delete(0, tk.END)
+    date_entry.insert(0, datetime.now().strftime("%d/%m/%Y"))
+    total_amount_var.set("Total: R$0.00")
+    discount_var.set("0,00")
+    discount_percentage_var.set("0,00")
+    discount_check_var.set(False)
+
+    for frame in item_frames:
+        frame.destroy()
+    item_frames.clear()
+    item_vars.clear()
+    quantity_vars.clear()
+
+    add_item_frame(item_frame_container, recipes, item_frames, item_vars, quantity_vars, total_amount_var, discount_var,
+                   discount_percentage_var, discount_check_var)
 
 
 def update_purchase_list(listbox):
@@ -167,10 +183,12 @@ def add_item_frame(main_frame, recipes, item_frames, item_vars, quantity_vars, t
 def update_total_amount(item_vars, quantity_vars, total_amount_var, discount_var, discount_percentage_var,
                         discount_check_var, recipes):
     try:
-        total_amount = sum(
-            float(quantity.get() or 0) * next((r[2] for r in recipes if f"{r[1]} - R${r[2]:.2f}" == item_var.get()), 0)
-            for quantity, item_var in zip(quantity_vars, item_vars)
-        )
+        total_amount = 0
+        for item_var, quantity_var in zip(item_vars, quantity_vars):
+            item_name_price = item_var.get()
+            quantity = float(quantity_var.get() or 0)
+            price = next((r[2] for r in recipes if f"{r[1]} - R${r[2]:.2f}" == item_name_price), 0)
+            total_amount += price * quantity
         if discount_check_var.get():
             discount = float(discount_var.get().replace(',', '.')) if discount_var.get() else 0
             discount_percentage = float(
@@ -331,9 +349,38 @@ def open_add_purchase_window(root, status_label):
                                          purchase_listbox,
                                          client_dropdown,
                                          date_entry,
-                                         item_frames
+                                         item_frames,
+                                         item_vars,
+                                         quantity_vars,
+                                         total_amount_var,
+                                         item_frame_container,
+                                         discount_var,
+                                         discount_percentage_var,
+                                         discount_check_var,
+                                         recipes
                                      ))
     add_purchase_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 10))
+
+    def delete_purchase():
+        selected = purchase_listbox.curselection()
+        if not selected:
+            messagebox.showerror("Erro", "Nenhuma compra selecionada.")
+            return
+        purchase_id = purchase_listbox.get(selected[0]).split(' - ')[0]
+        try:
+            with connect_to_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM Purchase_Items WHERE purchase_id = ?', (purchase_id,))
+                cursor.execute('DELETE FROM Compras WHERE purchase_id = ?', (purchase_id,))
+                conn.commit()
+                update_purchase_list(purchase_listbox)
+                status_label.config(text=f"Compra {purchase_id} deletada com sucesso", foreground="green")
+        except sqlite3.Error as e:
+            log_error(f"Erro ao deletar compra: {e}")
+            messagebox.showerror("Erro", f"Erro ao deletar compra: {e}")
+
+    delete_button = ttk.Button(button_frame, text="Deletar Compra", command=delete_purchase)
+    delete_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(10, 0))
 
     # Purchase list
     list_frame = ttk.Frame(main_frame)
