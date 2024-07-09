@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-
 import os
 from analytics import open_analytics_menu
 from expenses import open_expenses_window
@@ -9,7 +8,6 @@ from ingredients import open_add_ingredient_window
 from recipes import open_add_recipe_window
 from purchases import open_add_purchase_window
 from ui_config import apply_styles, load_icon
-
 
 def main():
     root = tk.Tk()
@@ -30,7 +28,7 @@ def main():
     # Add buttons
     add_ingredient_icon = load_icon("icons/add_ingredient.png")
     ingredient_button = ttk.Button(button_frame, text="Adicionar Ingrediente", image=add_ingredient_icon,
-                                   compound=tk.LEFT, command=lambda: open_add_ingredient_window(root, None),
+                                   compound=tk.LEFT, command=lambda: open_add_ingredient_window(root),
                                    style="TButton")
     ingredient_button.pack(side=tk.TOP, fill=tk.X, pady=5)
 
@@ -58,7 +56,6 @@ def main():
     expenses_button.pack(side=tk.TOP, fill=tk.X, pady=5)
 
     root.mainloop()
-
 
 if __name__ == "__main__":
     main()

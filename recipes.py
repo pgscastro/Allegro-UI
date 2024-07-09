@@ -25,7 +25,10 @@ def initialize_database():
             recipe_id INTEGER PRIMARY KEY,
             recipe_name TEXT NOT NULL,
             total_price REAL NOT NULL,
-            selling_price REAL NOT NULL
+            selling_price REAL NOT NULL,
+            mao_de_obra REAL DEFAULT 0,
+            gas_agua_luz REAL DEFAULT 0,
+            porcoes INTEGER DEFAULT 1
         )
         ''')
         cursor.execute('''
@@ -38,16 +41,25 @@ def initialize_database():
             FOREIGN KEY (ingredient_id) REFERENCES Ingredientes(ingredient_id)
         )
         ''')
+        # Check if columns exist, and add them if not
+        cursor.execute("PRAGMA table_info(Receitas)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if "mao_de_obra" not in columns:
+            cursor.execute("ALTER TABLE Receitas ADD COLUMN mao_de_obra REAL DEFAULT 0")
+        if "gas_agua_luz" not in columns:
+            cursor.execute("ALTER TABLE Receitas ADD COLUMN gas_agua_luz REAL DEFAULT 0")
+        if "porcoes" not in columns:
+            cursor.execute("ALTER TABLE Receitas ADD COLUMN porcoes INTEGER DEFAULT 1")
         conn.commit()
         conn.close()
 
 
 def delete_recipe(recipe_listbox, status_label):
-    selected_item = recipe_listbox.curselection()
+    selected_item = recipe_listbox.selection()
     if not selected_item:
         messagebox.showwarning("Erro de Seleção", "Nenhuma receita selecionada", parent=status_label.master)
         return
-    recipe_id = int(recipe_listbox.get(selected_item[0]).split(' ')[0])
+    recipe_id = int(recipe_listbox.item(selected_item[0], 'values')[0])
     conn = connect_to_db()
     if conn is not None:
         cursor = conn.cursor()
@@ -60,62 +72,46 @@ def delete_recipe(recipe_listbox, status_label):
         status_label.config(text=f"Receita ID '{recipe_id}' excluída com sucesso.")
 
 
-def update_recipe_list(listbox):
+def update_recipe_list(treeview):
     conn = connect_to_db()
     if conn is not None:
         cursor = conn.cursor()
-        cursor.execute('SELECT recipe_id, recipe_name, total_price, selling_price FROM Receitas')
+        cursor.execute('SELECT recipe_id, recipe_name, total_price, selling_price, mao_de_obra, gas_agua_luz, porcoes FROM Receitas')
         recipes = cursor.fetchall()
-        listbox.delete(0, tk.END)
+        for row in treeview.get_children():
+            treeview.delete(row)
         for recipe in recipes:
-            profit = recipe[3] - recipe[2]  # Calculate profit
-            listbox.insert(tk.END, f"{recipe[0]} - {recipe[1]} - Custo: R${recipe[2]:.2f} - Preço de venda: R${recipe[3]:.2f} - Lucro: R${profit:.2f}")
+            gastos = recipe[2] + (recipe[4] / 100 * recipe[2]) + (recipe[5] / 100 * recipe[2])
+            total_price = recipe[3] * recipe[6]
+            profit = total_price - gastos
+            treeview.insert('', tk.END, values=(recipe[0], recipe[1], gastos, total_price, recipe[4], recipe[5], profit))
         conn.close()
 
 
-
-def display_ingredients(event, listbox, ingredient_listbox):
-    selected_item = listbox.curselection()
-    if not selected_item:
-        return
-    recipe_id = int(listbox.get(selected_item[0]).split(' ')[0])
-    conn = connect_to_db()
-    if conn is not None:
-        cursor = conn.cursor()
-        cursor.execute('''
-        SELECT i.ingredient_name, ri.quantity, i.price_per_unit
-        FROM Recipe_Ingredients ri
-        JOIN Ingredientes i ON ri.ingredient_id = i.ingredient_id
-        WHERE ri.recipe_id = ?
-        ''', (recipe_id,))
-        ingredients = cursor.fetchall()
-        ingredient_listbox.delete(0, tk.END)
-        for ingredient in ingredients:
-            ingredient_listbox.insert(tk.END,
-                                      f"{ingredient[0]} - Quantidade: {ingredient[1]} - Preço por unidade: R${ingredient[2]:.2f}")
-        conn.close()
-
-
-def add_recipe(recipe_name, selling_price, ingredients, status_label, recipe_listbox, recipe_name_entry,
-               selling_price_entry, ingredient_frames):
-    if not recipe_name or not selling_price or not ingredients:
+def add_recipe(recipe_name, selling_price, mao_de_obra, gas_agua_luz, porcoes, ingredients, status_label, treeview, recipe_name_entry,
+               selling_price_entry, mao_de_obra_entry, gas_agua_luz_entry, porcoes_entry, ingredient_frames):
+    if not recipe_name or not selling_price or not mao_de_obra or not gas_agua_luz or not porcoes or not ingredients:
         status_label.config(text="Todos os campos são obrigatórios", foreground="red")
         return
 
     try:
         selling_price = float(selling_price.replace(',', '.'))
+        mao_de_obra = float(mao_de_obra)
+        gas_agua_luz = float(gas_agua_luz)
+        porcoes = int(porcoes)
     except ValueError:
-        status_label.config(text="Preço deve ser um número", foreground="red")
+        status_label.config(text="Preços e porcentagens devem ser números", foreground="red")
         return
 
     total_price = sum(ingredient['price_per_unit'] * ingredient['quantity'] for ingredient in ingredients.values())
+    gastos = total_price + (mao_de_obra / 100 * total_price) + (gas_agua_luz / 100 * total_price)
 
     conn = connect_to_db()
     if conn is not None:
         cursor = conn.cursor()
         cursor.execute('''
-        INSERT INTO Receitas (recipe_name, total_price, selling_price) VALUES (?, ?, ?)
-        ''', (recipe_name, total_price, selling_price))
+        INSERT INTO Receitas (recipe_name, total_price, selling_price, mao_de_obra, gas_agua_luz, porcoes) VALUES (?, ?, ?, ?, ?, ?)
+        ''', (recipe_name, total_price, selling_price, mao_de_obra, gas_agua_luz, porcoes))
         recipe_id = cursor.lastrowid
         for ingredient_id, ingredient in ingredients.items():
             cursor.execute('''
@@ -124,8 +120,8 @@ def add_recipe(recipe_name, selling_price, ingredients, status_label, recipe_lis
         conn.commit()
         conn.close()
         status_label.config(text=f"Receita '{recipe_name}' adicionada com sucesso", foreground="green")
-        update_recipe_list(recipe_listbox)
-        clear_form(recipe_name_entry, selling_price_entry)
+        update_recipe_list(treeview)
+        clear_form(recipe_name_entry, selling_price_entry, mao_de_obra_entry, gas_agua_luz_entry, porcoes_entry)
         for frame in ingredient_frames:
             frame.destroy()
 
@@ -152,47 +148,68 @@ def get_ingredients():
     return []
 
 
-def add_ingredient_frame(main_frame, ingredients, ingredient_frames, ingredient_vars, price_vars, quantity_vars,
-                         total_cost_var):
+def safe_float_conversion(value):
+    if value in [None, '']:
+        return 0.0
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def add_ingredient_frame(main_frame, ingredients, ingredient_frames, ingredient_vars, price_vars, quantity_vars, total_cost_var, full_price_var, profit_var, selling_price_entry, porcoes_entry, mao_de_obra_entry, gas_agua_luz_entry):
     frame = ttk.Frame(main_frame)
     frame.pack(fill=tk.X, pady=5)
 
     ingredient_var = tk.StringVar()
     ingredient_vars.append(ingredient_var)
-    ingredient_dropdown = ttk.Combobox(frame, textvariable=ingredient_var,
-                                       values=[f"{i[1]} - R${i[2]:.2f}" for i in ingredients])
+    ingredient_dropdown = ttk.Combobox(frame, textvariable=ingredient_var, values=[f"{i[1]} - R${i[2]:.2f}" for i in ingredients])
     ingredient_dropdown.grid(row=0, column=0, padx=(0, 10), sticky="ew")
     ingredient_dropdown.current(0)
 
     price_var = tk.DoubleVar(value=ingredients[0][2])
     price_vars.append(price_var)
-    # Removed the price_label that was causing the issue
-    # price_label = ttk.Label(frame, textvariable=price_var)
-    # price_label.grid(row=0, column=1, padx=(0, 10), sticky="ew")
 
-    # Quantity label and entry
     ttk.Label(frame, text="Quantidade:").grid(row=0, column=1, sticky="w", padx=(5, 2))
-    quantity_var = tk.DoubleVar(value=1.0)  # Default quantity
+    quantity_var = tk.StringVar(value="1.0")  # Default quantity
     quantity_vars.append(quantity_var)
     quantity_entry = ttk.Entry(frame, textvariable=quantity_var)
     quantity_entry.grid(row=0, column=2, padx=(0, 10), sticky="ew")
 
     def update_total_cost(*args):
+        total_cost = sum(safe_float_conversion(price.get()) * safe_float_conversion(quantity.get()) for price, quantity in zip(price_vars, quantity_vars))
+        total_cost_var.set(f"Gastos: R${total_cost:.2f}")
+
         try:
-            total_cost = sum(price.get() * float(quantity.get()) for price, quantity in zip(price_vars, quantity_vars))
-            total_cost_var.set(f"Total: R${total_cost:.2f}")
+            selling_price = float(selling_price_entry.get().replace(',', '.'))
+            porcoes = int(porcoes_entry.get())
+            mao_de_obra = float(mao_de_obra_entry.get().replace(',', '.'))
+            gas_agua_luz = float(gas_agua_luz_entry.get().replace(',', '.'))
+
+            total_price = selling_price * porcoes
+            full_price_var.set(f"Preço Total: R${total_price:.2f}")
+
+            gastos = total_cost + (mao_de_obra / 100 * total_cost) + (gas_agua_luz / 100 * total_cost)
+            lucro = total_price - gastos
+            profit_var.set(f"Lucro: R${lucro:.2f}")
         except ValueError:
-            total_cost_var.set("Total: R$0.00")
+            full_price_var.set("Preço Total: R$0.00")
+            profit_var.set("Lucro: R$0.00")
 
     ingredient_var.trace_add("write", update_total_cost)
     quantity_var.trace_add("write", update_total_cost)
+    selling_price_entry.bind("<KeyRelease>", update_total_cost)
+    porcoes_entry.bind("<KeyRelease>", update_total_cost)
+    mao_de_obra_entry.bind("<KeyRelease>", update_total_cost)
+    gas_agua_luz_entry.bind("<KeyRelease>", update_total_cost)
 
     ingredient_frames.append(frame)
 
+    # Trigger the update function initially
+    update_total_cost()
+
 
 def open_add_recipe_window(root):
-    initialize_database()
-
     add_recipe_window = tk.Toplevel(root)
     add_recipe_window.title("Adicionar Receita")
     add_recipe_window.geometry("700x700")
@@ -219,18 +236,33 @@ def open_add_recipe_window(root):
     selling_price_entry.insert(0, "0,00")
     selling_price_entry.grid(row=1, column=1, columnspan=3, sticky="ew")
 
+    ttk.Label(form_frame, text="Mão de Obra (%):").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
+    mao_de_obra_entry = ttk.Entry(form_frame)
+    mao_de_obra_entry.insert(0, "0")
+    mao_de_obra_entry.grid(row=2, column=1, columnspan=3, sticky="ew")
+
+    ttk.Label(form_frame, text="Gás/Água/Luz (%):").grid(row=3, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
+    gas_agua_luz_entry = ttk.Entry(form_frame)
+    gas_agua_luz_entry.insert(0, "0")
+    gas_agua_luz_entry.grid(row=3, column=1, columnspan=3, sticky="ew")
+
+    ttk.Label(form_frame, text="Porções:").grid(row=4, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
+    porcoes_entry = ttk.Entry(form_frame)
+    porcoes_entry.insert(0, "1")
+    porcoes_entry.grid(row=4, column=1, columnspan=3, sticky="ew")
+
     # Ingredients section
     ingredient_label = ttk.Label(form_frame, text="Ingredientes:", font=("Helvetica", 12))
-    ingredient_label.grid(row=2, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
+    ingredient_label.grid(row=5, column=0, sticky="e", padx=(0, 10), pady=(10, 0))
 
     ingredient_frame_container = ttk.Frame(form_frame)
-    ingredient_frame_container.grid(row=2, column=1, columnspan=3, sticky="ew")
+    ingredient_frame_container.grid(row=5, column=1, columnspan=3, sticky="ew")
 
     ingredient_frames = []
     ingredient_vars = []
     price_vars = []
     quantity_vars = []
-    total_cost_var = tk.StringVar(value="Total: R$0.00")
+    total_cost_var = tk.StringVar(value="Gastos: R$0.00")
     full_price_var = tk.StringVar(value="Preço Total: R$0.00")
     profit_var = tk.StringVar(value="Lucro: R$0.00")
 
@@ -240,26 +272,26 @@ def open_add_recipe_window(root):
         add_recipe_window.destroy()
         return
 
-    add_ingredient_frame(ingredient_frame_container, ingredients, ingredient_frames, ingredient_vars, price_vars, quantity_vars, total_cost_var)
+    add_ingredient_frame(ingredient_frame_container, ingredients, ingredient_frames, ingredient_vars, price_vars, quantity_vars, total_cost_var, full_price_var, profit_var, selling_price_entry, porcoes_entry, mao_de_obra_entry, gas_agua_luz_entry)
 
-    add_ingredient_button = ttk.Button(form_frame, text="Adicionar Ingrediente", command=lambda: add_ingredient_frame(ingredient_frame_container, ingredients, ingredient_frames, ingredient_vars, price_vars, quantity_vars, total_cost_var))
-    add_ingredient_button.grid(row=3, column=3, pady=(10, 20), sticky="e")
+    add_ingredient_button = ttk.Button(form_frame, text="Adicionar Ingrediente", command=lambda: add_ingredient_frame(ingredient_frame_container, ingredients, ingredient_frames, ingredient_vars, price_vars, quantity_vars, total_cost_var, full_price_var, profit_var, selling_price_entry, porcoes_entry, mao_de_obra_entry, gas_agua_luz_entry))
+    add_ingredient_button.grid(row=6, column=3, pady=(10, 20), sticky="e")
 
     total_cost_label = ttk.Label(form_frame, textvariable=total_cost_var, font=("Helvetica", 12, "bold"))
-    total_cost_label.grid(row=4, column=0, columnspan=4, pady=(0, 20))
+    total_cost_label.grid(row=7, column=0, columnspan=4, pady=(0, 20))
 
     # Full price and profit labels
     full_price_label = ttk.Label(form_frame, textvariable=full_price_var, font=("Helvetica", 12, "bold"))
-    full_price_label.grid(row=5, column=0, columnspan=4, pady=(0, 20))
+    full_price_label.grid(row=8, column=0, columnspan=4, pady=(0, 20))
 
     profit_label = ttk.Label(form_frame, textvariable=profit_var, font=("Helvetica", 12, "bold"))
-    profit_label.grid(row=6, column=0, columnspan=4, pady=(0, 20))
+    profit_label.grid(row=9, column=0, columnspan=4, pady=(0, 20))
 
     form_frame.grid_columnconfigure(1, weight=1)
 
     # Status label for messages in this window
     status_label = ttk.Label(form_frame, text="", font=("Helvetica", 10))
-    status_label.grid(row=7, column=0, columnspan=4, pady=(10, 0), sticky="ew")
+    status_label.grid(row=10, column=0, columnspan=4, pady=(10, 0), sticky="ew")
 
     # Load icons
     add_update_icon = load_icon("icons/add_update.png")
@@ -267,17 +299,23 @@ def open_add_recipe_window(root):
 
     # Buttons with icons
     button_frame = ttk.Frame(main_frame)
-    button_frame.grid(row=8, column=0, columnspan=4, pady=20, sticky="ew")
+    button_frame.grid(row=11, column=0, columnspan=4, pady=20, sticky="ew")
 
     add_recipe_button = ttk.Button(button_frame, text="Adicionar Receita", image=add_update_icon, compound=tk.LEFT,
                                    command=lambda: add_recipe(
                                        recipe_name_entry.get(),
                                        selling_price_entry.get(),
-                                       {ingredients[i][0]: {'price_per_unit': price.get(), 'quantity': quantity.get()} for i, (price, quantity) in enumerate(zip(price_vars, quantity_vars))},
+                                       mao_de_obra_entry.get(),
+                                       gas_agua_luz_entry.get(),
+                                       porcoes_entry.get(),
+                                       {ingredients[i][0]: {'price_per_unit': price.get(), 'quantity': safe_float_conversion(quantity.get())} for i, (price, quantity) in enumerate(zip(price_vars, quantity_vars))},
                                        status_label,
                                        recipe_listbox,
                                        recipe_name_entry,
                                        selling_price_entry,
+                                       mao_de_obra_entry,
+                                       gas_agua_luz_entry,
+                                       porcoes_entry,
                                        ingredient_frames
                                    ))
     add_recipe_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 10))
@@ -286,27 +324,48 @@ def open_add_recipe_window(root):
                                       command=lambda: delete_recipe(recipe_listbox, status_label))
     delete_recipe_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 10))
 
-    # Recipe list
+    # Recipe list with Treeview
     list_frame = ttk.Frame(main_frame)
-    list_frame.grid(row=9, column=0, columnspan=4, pady=20, sticky="nsew")
+    list_frame.grid(row=12, column=0, columnspan=4, pady=20, sticky="nsew")
 
-    recipe_listbox = tk.Listbox(list_frame, width=50, height=10)
+    columns = ('ID', 'Nome', 'Gastos', 'Preço Total', 'Mão de Obra (%)', 'Gás/Água/Luz (%)', 'Lucro')
+    recipe_listbox = ttk.Treeview(list_frame, columns=columns, show='headings')
+    for col in columns:
+        recipe_listbox.heading(col, text=col)
     recipe_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    recipe_listbox.bind('<<ListboxSelect>>', lambda event: display_ingredients(event, recipe_listbox, ingredient_listbox))
 
     scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=recipe_listbox.yview)
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
     recipe_listbox.config(yscrollcommand=scrollbar.set)
 
-    # Ingredient list display for selected recipe
-    ingredient_listbox = tk.Listbox(main_frame, width=50, height=10)
-    ingredient_listbox.grid(row=10, column=0, columnspan=4, pady=10, sticky="nsew")
-
-    main_frame.grid_rowconfigure(9, weight=1)
-    main_frame.grid_rowconfigure(10, weight=1)
+    main_frame.grid_rowconfigure(12, weight=1)
     main_frame.grid_columnconfigure(0, weight=1)
 
     update_recipe_list(recipe_listbox)
 
     add_recipe_window.mainloop()
+
+
+def main():
+    root = tk.Tk()
+    root.title("Gerenciador de Receitas")
+    root.geometry("800x600")
+    root.minsize(800, 600)
+
+    main_frame = ttk.Frame(root, padding="20 20 20 20")
+    main_frame.pack(fill=tk.BOTH, expand=True)
+
+    header_label = ttk.Label(main_frame, text="Gerenciador de Receitas", font=("Helvetica", 18, "bold"))
+    header_label.pack(pady=(0, 20))
+
+    recipe_button = ttk.Button(main_frame, text="Adicionar Receita", command=lambda: open_add_recipe_window(root))
+    recipe_button.pack(pady=(0, 20))
+
+    initialize_database()
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
